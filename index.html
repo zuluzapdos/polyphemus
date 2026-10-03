@@ -1,1 +1,141 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Eye of Polyphemus</title>
+<style>
+:root{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+canvas{display:block;width:100%;height:100%;cursor:none;touch-action:none}
+#hint{position:fixed;left:0;right:0;bottom:calc(24px + env(safe-area-inset-bottom,0px));text-align:center;
+font:italic 15px Georgia,serif;color:#6b5a40;letter-spacing:.12em;transition:opacity 1.5s;pointer-events:none}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="hint">move the torch through the dark…</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const mk=()=>document.createElement('canvas');
+const bg=mk(),sc=mk(),lit=mk(),bgx=bg.getContext('2d'),scx=sc.getContext('2d'),lx_=lit.getContext('2d');
+let W,H,D,cx,cy,A,B,R,veins=[],fibers=[];
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function almond(g,a,b){g.beginPath();g.moveTo(-a,0);g.quadraticCurveTo(0,-b*1.7,a,0);g.quadraticCurveTo(0,b*1.7,-a,0);g.closePath()}
+
+function build(){
+  D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+  [cv,bg,sc,lit].forEach(c=>{c.width=W*D;c.height=H*D});
+  [bgx,scx,lx_,ctx].forEach(g=>g.setTransform(D,0,0,D,0,0));
+  cx=W/2;cy=H/2;R=Math.min(W*0.5,H*0.7)*0.4;A=R*1.35;B=R*0.85;
+  const r=rng(7),g=bgx;
+  // cave rock
+  g.fillStyle='#0d0a08';g.fillRect(0,0,W,H);
+  for(let i=0;i<700;i++){const x=r()*W,y=r()*H,s=20+r()*120,l=r()*22;
+    const gr=g.createRadialGradient(x,y,0,x,y,s);gr.addColorStop(0,`rgba(${40+l},${32+l},${26+l},.45)`);gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr;g.fillRect(x-s,y-s,s*2,s*2)}
+  g.strokeStyle='rgba(0,0,0,.5)';g.lineWidth=2;
+  for(let i=0;i<90;i++){let x=r()*W,y=r()*H;g.beginPath();g.moveTo(x,y);for(let k=0;k<6;k++){x+=(r()-.5)*90;y+=(r()-.3)*70;g.lineTo(x,y)}g.stroke()}
+  g.fillStyle='#14100c';
+  for(let i=0;i<14;i++){const x=r()*W,w=30+r()*70,h=60+r()*160;g.beginPath();g.moveTo(x-w,0);g.lineTo(x+w,0);g.lineTo(x+(r()-.5)*20,h);g.fill()}
+  for(let i=0;i<12;i++){const x=r()*W,w=40+r()*80,h=50+r()*130;g.beginPath();g.moveTo(x-w,H);g.lineTo(x+w,H);g.lineTo(x+(r()-.5)*20,H-h);g.fill()}
+  // giant fleshy brow & skin
+  g.save();g.translate(cx,cy);
+  let gr=g.createRadialGradient(0,0,R*.5,0,0,R*2.6);
+  gr.addColorStop(0,'#5a4636');gr.addColorStop(.5,'#3b2c22');gr.addColorStop(1,'rgba(13,10,8,0)');
+  g.fillStyle=gr;g.beginPath();g.ellipse(0,0,A*2.1,B*2.7,0,0,7);g.fill();
+  g.lineCap='round';
+  for(let i=0;i<26;i++){g.strokeStyle=`rgba(15,9,6,${.25+r()*.3})`;g.lineWidth=2+r()*5;
+    g.beginPath();g.ellipse(0,-B*.2,A*(1.12+i*.045),B*(1.1+i*.05),0,Math.PI*1.04,Math.PI*1.96);g.stroke()}
+  for(let i=0;i<14;i++){g.strokeStyle='rgba(15,9,6,.35)';g.lineWidth=2+r()*3;
+    g.beginPath();g.ellipse(0,B*.3,A*(1.1+i*.05),B*(1.0+i*.05),0,.1,Math.PI-.1);g.stroke()}
+  // heavy brow ridge
+  g.strokeStyle='#2a1d15';g.lineWidth=R*.28;g.beginPath();g.moveTo(-A*1.5,-B*.5);g.quadraticCurveTo(0,-B*2.8,A*1.5,-B*.5);g.stroke();
+  g.strokeStyle='rgba(120,95,75,.18)';g.lineWidth=R*.07;g.beginPath();g.moveTo(-A*1.4,-B*.7);g.quadraticCurveTo(0,-B*2.65,A*1.4,-B*.7);g.stroke();
+  // sclera
+  almond(g,A,B);
+  gr=g.createRadialGradient(0,0,R*.2,0,0,A);
+  gr.addColorStop(0,'#e6d8b0');gr.addColorStop(.6,'#c9b58c');gr.addColorStop(1,'#7a4a3a');
+  g.fillStyle=gr;g.fill();
+  g.save();almond(g,A,B);g.clip();
+  veins=[];
+  for(let i=0;i<70;i++){const ang=r()*6.283,rad=A*(.55+r()*.5);let x=Math.cos(ang)*rad*1.0,y=Math.sin(ang)*rad*.65;
+    g.strokeStyle=`rgba(150,25,20,${.25+r()*.4})`;g.lineWidth=.8+r()*2;g.beginPath();g.moveTo(x,y);
+    for(let k=0;k<7;k++){x-=Math.cos(ang)*A*.06+(r()-.5)*14;y-=Math.sin(ang)*B*.06+(r()-.5)*10;g.lineTo(x,y)}g.stroke()}
+  g.restore();
+  g.restore();
+  fibers=[];for(let i=0;i<90;i++)fibers.push([r()*6.283,.35+r()*.3,.85+r()*.15,r()]);
+}
+
+function drawScene(t,lx,ly){
+  const g=scx;g.drawImage(bg,0,0,W,H);
+  g.save();g.translate(cx,cy);
+  almond(g,A,B);g.clip();
+  // iris follows the light
+  const dx=lx-cx,dy=ly-cy,dist=Math.hypot(dx,dy)||1,mv=Math.min(dist/(R*2),1);
+  const ix=dx/dist*mv*R*.32,iy=dy/dist*mv*R*.18;
+  const ir=R*.62;
+  g.save();g.translate(ix,iy);
+  let gr=g.createRadialGradient(0,0,ir*.2,0,0,ir);
+  gr.addColorStop(0,'#c9a43a');gr.addColorStop(.55,'#7d8a2a');gr.addColorStop(.9,'#2f4a1a');gr.addColorStop(1,'#0e1608');
+  g.fillStyle=gr;g.beginPath();g.arc(0,0,ir,0,7);g.fill();
+  const lightNear=Math.max(0,1-dist/(R*2.2));
+  const pr=ir*(.48-.22*lightNear)+Math.sin(t*.002)*1.5;
+  g.lineWidth=1.2;
+  for(const f of fibers){g.strokeStyle=f[3]>.5?'rgba(255,225,120,.28)':'rgba(10,25,5,.45)';
+    g.beginPath();g.moveTo(Math.cos(f[0])*pr*1.05,Math.sin(f[0])*pr*1.05);g.lineTo(Math.cos(f[0])*ir*f[2],Math.sin(f[0])*ir*f[2]);g.stroke()}
+  g.strokeStyle='#050803';g.lineWidth=ir*.09;g.beginPath();g.arc(0,0,ir*.97,0,7);g.stroke();
+  g.fillStyle='#030201';g.beginPath();g.arc(0,0,pr,0,7);g.fill();
+  // wet glint from the torch
+  const ga=Math.atan2(dy,dx);
+  g.fillStyle='rgba(255,246,215,.9)';g.beginPath();g.ellipse(Math.cos(ga)*ir*.3,Math.sin(ga)*ir*.3-ir*.05,ir*.12,ir*.07,ga,0,7);g.fill();
+  g.fillStyle='rgba(255,246,215,.35)';g.beginPath();g.arc(-Math.cos(ga)*ir*.35,-Math.sin(ga)*ir*.3,ir*.05,0,7);g.fill();
+  g.restore();
+  // lid shadows inside the eye
+  gr=g.createLinearGradient(0,-B*.9,0,B*.9);
+  gr.addColorStop(0,'rgba(15,5,2,.85)');gr.addColorStop(.35,'rgba(15,5,2,0)');gr.addColorStop(.75,'rgba(15,5,2,0)');gr.addColorStop(1,'rgba(15,5,2,.6)');
+  g.fillStyle=gr;g.fillRect(-A,-B*1.8,A*2,B*3.6);
+  // moist sheen
+  g.fillStyle='rgba(255,255,255,.07)';g.beginPath();g.ellipse(-A*.35,-B*.35,A*.3,B*.12,-.3,0,7);g.fill();
+  g.restore();
+  // lid rim
+  g.save();g.translate(cx,cy);almond(g,A,B);g.strokeStyle='#1a0f0a';g.lineWidth=R*.07;g.stroke();
+  g.strokeStyle='rgba(190,120,100,.25)';g.lineWidth=2;g.stroke();g.restore();
+}
+
+let mx=innerWidth*.2,my=innerHeight*.75,lx=mx,ly=my,hinted=false;
+function move(e){mx=e.clientX;my=e.clientY;if(!hinted){hinted=true;document.getElementById('hint').style.opacity=0}}
+addEventListener('pointermove',move);addEventListener('pointerdown',move);
+addEventListener('resize',build);
+
+function frame(t){
+  lx+=(mx-lx)*.16;ly+=(my-ly)*.16;
+  const fl=1+Math.sin(t*.011)*.015+Math.sin(t*.037)*.012;
+  const r=Math.min(W,H)*.14*fl;
+  drawScene(t,lx,ly);
+  ctx.globalCompositeOperation='source-over';ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  // torch origin (held at bottom of screen)
+  const ox=W*.5+(lx-W*.5)*.25,oy=H+20;
+  const ang=Math.atan2(ly-oy,lx-ox),px=-Math.sin(ang),py=Math.cos(ang);
+  const w0=8,w1=r*1.02;
+  const cone=()=>{ctx.beginPath();ctx.moveTo(ox+px*w0,oy+py*w0);ctx.lineTo(lx+px*w1,ly+py*w1);ctx.lineTo(lx-px*w1,ly-py*w1);ctx.lineTo(ox-px*w0,oy-py*w0);ctx.closePath()};
+  // faint glimpse of rock inside the beam
+  ctx.save();cone();ctx.clip();ctx.globalAlpha=.05;ctx.drawImage(sc,0,0,W,H);ctx.restore();
+  // beam haze
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  let hz=ctx.createLinearGradient(ox,oy,lx,ly);
+  hz.addColorStop(0,'rgba(255,215,140,.0)');hz.addColorStop(.4,'rgba(255,210,130,.05)');hz.addColorStop(1,`rgba(255,215,140,${.10*fl})`);
+  ctx.fillStyle=hz;cone();ctx.fill();ctx.restore();
+  // clear circle of light
+  lx_.globalCompositeOperation='source-over';lx_.clearRect(0,0,W,H);lx_.drawImage(sc,0,0,W,H);
+  lx_.globalCompositeOperation='destination-in';
+  let rg=lx_.createRadialGradient(lx,ly,r*.1,lx,ly,r);
+  rg.addColorStop(0,'rgba(0,0,0,1)');rg.addColorStop(.72,'rgba(0,0,0,.95)');rg.addColorStop(.9,'rgba(0,0,0,.4)');rg.addColorStop(1,'rgba(0,0,0,0)');
+  lx_.fillStyle=rg;lx_.fillRect(0,0,W,H);lx_.globalCompositeOperation='source-over';
+  ctx.drawImage(lit,0,0,W,H);
+  // warm torchlight tint + hot centre
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  rg=ctx.createRadialGradient(lx,ly,0,lx,ly,r);
+  rg.addColorStop(0,`rgba(255,200,110,${.2*fl})`);rg.addColorStop(.7,'rgba(255,170,80,.07)');rg.addColorStop(1,'rgba(255,150,60,0)');
+  ctx.fillStyle=rg;ctx.beginPath();ctx.arc(lx,ly,r,0,7);ctx.fill();ctx.restore();
+  requestAnimationFrame(frame);
+}
+build();requestAnimationFrame(frame);
+</script></body></html>
 
